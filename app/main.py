@@ -1,10 +1,16 @@
+from typing import Union
 from dataclasses import asdict
 
 from fastapi import FastAPI
 
 from app.normalization import QueryNormalizer
-from app.schemas import AllNormalizationResponse, NormalizationResponse, QueryRequest
-
+from app.schemas import (
+    AllBasicNormalizationResponse,
+    AllNormalizationResponse,
+    BasicNormalizationResponse,
+    NormalizationResponse,
+    QueryRequest,
+)
 
 app = FastAPI(
     title="Query Normalizer",
@@ -20,25 +26,45 @@ def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/normalize/classic", response_model=NormalizationResponse)
-def normalize_for_classic(payload: QueryRequest) -> NormalizationResponse:
+@app.post("/normalize/classic", response_model=Union[NormalizationResponse, BasicNormalizationResponse])
+def normalize_for_classic(payload: QueryRequest) -> Union[NormalizationResponse, BasicNormalizationResponse]:
     result = normalizer.normalize_for_classic(payload.query)
-    return NormalizationResponse(**asdict(result))
+    if payload.debug:
+        return NormalizationResponse(**asdict(result))
+    return BasicNormalizationResponse(
+        normalized_query=result.normalized_query,
+        tokens=result.tokens,
+    )
 
 
-@app.post("/normalize/embedding", response_model=NormalizationResponse)
-def normalize_for_embedding(payload: QueryRequest) -> NormalizationResponse:
+@app.post("/normalize/embedding", response_model=Union[NormalizationResponse, BasicNormalizationResponse])
+def normalize_for_embedding(payload: QueryRequest) -> Union[NormalizationResponse, BasicNormalizationResponse]:
     result = normalizer.normalize_for_embedding(payload.query)
-    return NormalizationResponse(**asdict(result))
+    if payload.debug:
+        return NormalizationResponse(**asdict(result))
+    return BasicNormalizationResponse(
+        normalized_query=result.normalized_query,
+        tokens=result.tokens,
+    )
 
 
-@app.post("/normalize", response_model=AllNormalizationResponse)
-def normalize_for_all(payload: QueryRequest) -> AllNormalizationResponse:
+@app.post("/normalize", response_model=Union[AllNormalizationResponse, AllBasicNormalizationResponse])
+def normalize_for_all(payload: QueryRequest) -> Union[AllNormalizationResponse, AllBasicNormalizationResponse]:
     classic = normalizer.normalize_for_classic(payload.query)
     embedding = normalizer.normalize_for_embedding(payload.query)
 
-    return AllNormalizationResponse(
-        original_query=payload.query,
-        classic=NormalizationResponse(**asdict(classic)),
-        embedding=NormalizationResponse(**asdict(embedding)),
+    if payload.debug:
+        return AllNormalizationResponse(
+            classic=NormalizationResponse(**asdict(classic)),
+            embedding=NormalizationResponse(**asdict(embedding)),
+        )
+    return AllBasicNormalizationResponse(
+        classic=BasicNormalizationResponse(
+            normalized_query=classic.normalized_query,
+            tokens=classic.tokens,
+        ),
+        embedding=BasicNormalizationResponse(
+            normalized_query=embedding.normalized_query,
+            tokens=embedding.tokens,
+        ),
     )

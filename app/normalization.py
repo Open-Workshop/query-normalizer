@@ -16,9 +16,7 @@ from stop_words import get_stop_words
 TOKEN_RE = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+(?:['`’][0-9A-Za-zА-Яа-яЁё]+)*|[.,]")
 LATIN_RE = re.compile(r"[A-Za-z]")
 CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
-APOSTROPHE_BETWEEN_WORD_CHARS_RE = re.compile(
-    r"(?<=[0-9A-Za-zА-Яа-яЁё])['`’]+(?=[0-9A-Za-zА-Яа-яЁё])"
-)
+ELLIPSIS_RE = re.compile(r"\.{2,}")
 BBCODE_TAG_RE = re.compile(r"\[(?:/?[A-Za-z]+(?:=[^\]]*)?|/?\*)\]")
 HTML_LIKE_TAG_RE = re.compile(r"<[A-Za-z][^>]*>|</[A-Za-z][^>]*>")
 ANGLE_BRACKETS_RE = re.compile(r"[<>]")
@@ -51,7 +49,6 @@ KEYBOARD_CYRILLIC_TO_LATIN = str.maketrans(
 
 @dataclass(slots=True)
 class NormalizationResult:
-    original_query: str
     normalized_query: str
     tokens: list[str]
     corrections_applied: list[str]
@@ -70,11 +67,16 @@ class QueryNormalizer:
         )
 
     def normalize_for_embedding(self, query: str) -> NormalizationResult:
-        return self._normalize(
+        result = self._normalize(
             query=query,
             remove_stopwords=False,
             lemmatize_tokens=False,
             preserve_punctuation=True,
+        )
+        return NormalizationResult(
+            normalized_query=result.normalized_query,
+            tokens=[],
+            corrections_applied=result.corrections_applied,
         )
 
     def _normalize(
@@ -134,7 +136,6 @@ class QueryNormalizer:
                     prepared_tokens.append(final_token)
 
         return NormalizationResult(
-            original_query=query,
             normalized_query=self._render_normalized_query(prepared_tokens),
             tokens=prepared_tokens,
             corrections_applied=corrections,
@@ -167,16 +168,14 @@ class QueryNormalizer:
         whitespace_normalized = WHITESPACE_RE.sub(" ", preprocessed).strip()
         if whitespace_normalized != preprocessed.strip():
             corrections.append("whitespace-normalize")
-
-        return whitespace_normalized
+        
+        ellipsis_normalized = ELLIPSIS_RE.sub(".", whitespace_normalized)
+        if ellipsis_normalized != whitespace_normalized:
+            corrections.append("ellipsis-normalize")
+        
+        return ellipsis_normalized
 
     def _normalize_punctuation_token(self, token: str) -> tuple[list[str], str | None]:
-        normalized = APOSTROPHE_BETWEEN_WORD_CHARS_RE.sub(" ", token)
-        normalized = " ".join(part for part in normalized.split() if part)
-
-        if normalized != token:
-            return normalized.split(), f"punctuation-normalize:{token}->{normalized}"
-
         return [token], None
 
     def _normalize_token(self, token: str) -> tuple[list[str], list[str]]:

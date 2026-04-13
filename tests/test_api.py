@@ -9,7 +9,7 @@ client = TestClient(app)
 def test_classic_normalization_for_russian_query() -> None:
     response = client.post(
         "/normalize/classic",
-        json={"query": "Это ghbdtn алфaвиты и машины"},
+        json={"query": "Это ghbdtn алфaвиты и машины", "debug": True},
     )
 
     assert response.status_code == 200
@@ -24,16 +24,30 @@ def test_classic_normalization_for_russian_query() -> None:
     assert "lemma:машины->машина" in data["corrections_applied"]
 
 
-def test_embedding_preserves_natural_phrase() -> None:
+def test_classic_normalization_without_debug() -> None:
     response = client.post(
-        "/normalize/embedding",
+        "/normalize/classic",
         json={"query": "Это ghbdtn алфaвиты и машины"},
     )
 
     assert response.status_code == 200
 
     data = response.json()
-    assert data["tokens"] == ["это", "привет", "алфавиты", "и", "машины"]
+    assert data["tokens"] == ["привет", "алфавит", "машина"]
+    assert data["normalized_query"] == "привет алфавит машина"
+    assert "corrections_applied" not in data
+
+
+def test_embedding_preserves_natural_phrase() -> None:
+    response = client.post(
+        "/normalize/embedding",
+        json={"query": "Это ghbdtn алфaвиты и машины", "debug": True},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["tokens"] == []
     assert data["normalized_query"] == "это привет алфавиты и машины"
     assert "stopword:это" not in data["corrections_applied"]
     assert "stopword:и" not in data["corrections_applied"]
@@ -46,7 +60,8 @@ def test_classic_english_query_is_lemmatized() -> None:
             "query": (
                 "i am looking for a mod that adds more realistic weapons "
                 "and makes the enemies feel much harder"
-            )
+            ),
+            "debug": True,
         },
     )
 
@@ -81,33 +96,15 @@ def test_embedding_english_query_keeps_full_phrase() -> None:
             "query": (
                 "i am looking for a mod that adds more realistic weapons "
                 "and makes the enemies feel much harder"
-            )
+            ),
+            "debug": True,
         },
     )
 
     assert response.status_code == 200
 
     data = response.json()
-    assert data["tokens"] == [
-        "i",
-        "am",
-        "looking",
-        "for",
-        "a",
-        "mod",
-        "that",
-        "adds",
-        "more",
-        "realistic",
-        "weapons",
-        "and",
-        "makes",
-        "the",
-        "enemies",
-        "feel",
-        "much",
-        "harder",
-    ]
+    assert data["tokens"] == []
     assert data["normalized_query"] == (
         "i am looking for a mod that adds more realistic weapons "
         "and makes the enemies feel much harder"
@@ -118,23 +115,22 @@ def test_embedding_english_query_keeps_full_phrase() -> None:
 def test_casefold_and_punctuation_normalization_are_reported() -> None:
     response = client.post(
         "/normalize",
-        json={"query": "I'Am, ghbdtn."},
+        json={"query": "I'Am, ghbdtn.", "debug": True},
     )
 
     assert response.status_code == 200
 
     data = response.json()
     assert "casefold:I'Am->i'am" in data["classic"]["corrections_applied"]
-    assert "punctuation-normalize:i'am->i am" in data["classic"]["corrections_applied"]
-    assert data["classic"]["normalized_query"] == "привет"
-    assert data["embedding"]["normalized_query"] == "i am, привет."
-    assert data["embedding"]["tokens"] == ["i", "am", ",", "привет", "."]
+    assert data["classic"]["normalized_query"] == "i'am привет"
+    assert data["embedding"]["normalized_query"] == "i'am, привет."
+    assert data["embedding"]["tokens"] == []
 
 
 def test_html_entities_do_not_turn_into_fake_tokens() -> None:
     response = client.post(
         "/normalize",
-        json={"query": "&lt;MOD is it?"},
+        json={"query": "&lt;MOD is it?", "debug": True},
     )
 
     assert response.status_code == 200
@@ -144,7 +140,7 @@ def test_html_entities_do_not_turn_into_fake_tokens() -> None:
     assert data["classic"]["normalized_query"] == "mod"
     assert data["classic"]["tokens"] == ["mod"]
     assert data["embedding"]["normalized_query"] == "mod is it"
-    assert data["embedding"]["tokens"] == ["mod", "is", "it"]
+    assert data["embedding"]["tokens"] == []
 
 
 def test_markup_noise_is_stripped_from_mod_description() -> None:
@@ -155,7 +151,8 @@ def test_markup_noise_is_stripped_from_mod_description() -> None:
                 'This mod does [b]nothing by its self[/b]. '
                 '[list][*] Harmony Postfix [/list] '
                 '<Defs><PawnKindDef><defName>Pilgrim_Rose</defName></PawnKindDef></Defs>'
-            )
+            ),
+            "debug": True,
         },
     )
 
@@ -164,23 +161,50 @@ def test_markup_noise_is_stripped_from_mod_description() -> None:
     data = response.json()
     assert "bbcode-strip" in data["corrections_applied"]
     assert "html-tag-strip" in data["corrections_applied"]
-    assert "b" not in data["tokens"]
-    assert "list" not in data["tokens"]
-    assert "defs" not in data["tokens"]
-    assert "pawnkinddef" not in data["tokens"]
-    assert "defname" not in data["tokens"]
-    assert "pilgrim" in data["tokens"]
-    assert "rose" in data["tokens"]
+    assert "[b]" not in data["normalized_query"]
+    assert "[/b]" not in data["normalized_query"]
+    assert "[list]" not in data["normalized_query"]
+    assert "<Defs>" not in data["normalized_query"]
+    assert "<PawnKindDef>" not in data["normalized_query"]
+    assert "pilgrim" in data["normalized_query"]
+    assert "rose" in data["normalized_query"]
 
 
 def test_negation_is_preserved() -> None:
     response = client.post(
         "/normalize",
-        json={"query": "не красные машины"},
+        json={"query": "не красные машины", "debug": True},
     )
 
     assert response.status_code == 200
 
     data = response.json()
     assert data["classic"]["tokens"] == ["не", "красный", "машина"]
-    assert data["embedding"]["tokens"] == ["не", "красные", "машины"]
+    assert data["embedding"]["tokens"] == []
+    assert data["classic"]["normalized_query"] == "не красный машина"
+    assert data["embedding"]["normalized_query"] == "не красные машины"
+
+
+def test_apostrophe_in_words_is_preserved() -> None:
+    response = client.post(
+        "/normalize/embedding",
+        json={"query": "didn't can't", "debug": True},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["normalized_query"] == "didn't can't"
+
+
+def test_ellipsis_is_collapsed_to_single_dot() -> None:
+    response = client.post(
+        "/normalize/embedding",
+        json={"query": "test... query... word", "debug": True},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["normalized_query"] == "test. query. word"
+    assert "ellipsis-normalize" in data["corrections_applied"]
