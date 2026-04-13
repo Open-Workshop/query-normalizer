@@ -1,10 +1,12 @@
+"""FastAPI server for query normalization."""
+
 from typing import Union
 from dataclasses import asdict
 
 from fastapi import FastAPI
 
-from app.normalization import QueryNormalizer
-from app.schemas import (
+from query_normalizer.core import QueryNormalizer
+from query_normalizer.schemas import (
     AllBasicNormalizationResponse,
     AllNormalizationResponse,
     BasicNormalizationResponse,
@@ -14,7 +16,7 @@ from app.schemas import (
 
 app = FastAPI(
     title="Query Normalizer",
-    description="FastAPI microservice for search-query normalization.",
+    description="API for search-query normalization.",
     version="0.1.0",
 )
 

@@ -1,7 +1,5 @@
 from fastapi.testclient import TestClient
-
-from app.main import app
-
+from query_normalizer.server import app
 
 client = TestClient(app)
 
