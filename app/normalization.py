@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import html
 import re
 
+from bs4 import BeautifulSoup
 from confusable_homoglyphs import confusables
 import nltk
 from nltk.corpus import stopwords as nltk_stopwords
@@ -18,6 +19,10 @@ CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 APOSTROPHE_BETWEEN_WORD_CHARS_RE = re.compile(
     r"(?<=[0-9A-Za-zА-Яа-яЁё])['`’]+(?=[0-9A-Za-zА-Яа-яЁё])"
 )
+BBCODE_TAG_RE = re.compile(r"\[(?:/?[A-Za-z]+(?:=[^\]]*)?|/?\*)\]")
+HTML_LIKE_TAG_RE = re.compile(r"<[A-Za-z][^>]*>|</[A-Za-z][^>]*>")
+ANGLE_BRACKETS_RE = re.compile(r"[<>]")
+WHITESPACE_RE = re.compile(r"\s+")
 
 SCRIPT_ALIASES = {"LATIN", "CYRILLIC"}
 PUNCTUATION_TOKENS = {",", "."}
@@ -81,10 +86,7 @@ class QueryNormalizer:
     ) -> NormalizationResult:
         corrections: list[str] = []
         prepared_tokens: list[str] = []
-        preprocessed_query = html.unescape(query)
-
-        if preprocessed_query != query:
-            corrections.append(f"html-unescape:{query}->{preprocessed_query}")
+        preprocessed_query = self._preprocess_query(query, corrections)
 
         for raw_token in self._tokenize(preprocessed_query):
             if raw_token in PUNCTUATION_TOKENS:
@@ -140,6 +142,33 @@ class QueryNormalizer:
 
     def _tokenize(self, query: str) -> list[str]:
         return [match.group(0) for match in TOKEN_RE.finditer(query)]
+
+    def _preprocess_query(self, query: str, corrections: list[str]) -> str:
+        preprocessed = html.unescape(query)
+        if preprocessed != query:
+            corrections.append(f"html-unescape:{query}->{preprocessed}")
+
+        bbcode_stripped = BBCODE_TAG_RE.sub(" ", preprocessed)
+        if bbcode_stripped != preprocessed:
+            corrections.append("bbcode-strip")
+        preprocessed = bbcode_stripped
+
+        if HTML_LIKE_TAG_RE.search(preprocessed):
+            html_stripped = BeautifulSoup(preprocessed, "html.parser").get_text(" ", strip=False)
+            if html_stripped != preprocessed:
+                corrections.append("html-tag-strip")
+            preprocessed = html_stripped
+
+        angle_normalized = ANGLE_BRACKETS_RE.sub(" ", preprocessed)
+        if angle_normalized != preprocessed:
+            corrections.append("angle-bracket-normalize")
+        preprocessed = angle_normalized
+
+        whitespace_normalized = WHITESPACE_RE.sub(" ", preprocessed).strip()
+        if whitespace_normalized != preprocessed.strip():
+            corrections.append("whitespace-normalize")
+
+        return whitespace_normalized
 
     def _normalize_punctuation_token(self, token: str) -> tuple[list[str], str | None]:
         normalized = APOSTROPHE_BETWEEN_WORD_CHARS_RE.sub(" ", token)

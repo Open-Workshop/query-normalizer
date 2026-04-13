@@ -147,6 +147,32 @@ def test_html_entities_do_not_turn_into_fake_tokens() -> None:
     assert data["embedding"]["tokens"] == ["mod", "is", "it"]
 
 
+def test_markup_noise_is_stripped_from_mod_description() -> None:
+    response = client.post(
+        "/for/embedding",
+        json={
+            "query": (
+                'This mod does [b]nothing by its self[/b]. '
+                '[list][*] Harmony Postfix [/list] '
+                '<Defs><PawnKindDef><defName>Pilgrim_Rose</defName></PawnKindDef></Defs>'
+            )
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "bbcode-strip" in data["corrections_applied"]
+    assert "html-tag-strip" in data["corrections_applied"]
+    assert "b" not in data["tokens"]
+    assert "list" not in data["tokens"]
+    assert "defs" not in data["tokens"]
+    assert "pawnkinddef" not in data["tokens"]
+    assert "defname" not in data["tokens"]
+    assert "pilgrim" in data["tokens"]
+    assert "rose" in data["tokens"]
+
+
 def test_negation_is_preserved() -> None:
     response = client.post(
         "/for/all",
