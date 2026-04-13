@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import html
 import re
 
 from confusable_homoglyphs import confusables
@@ -80,8 +81,12 @@ class QueryNormalizer:
     ) -> NormalizationResult:
         corrections: list[str] = []
         prepared_tokens: list[str] = []
+        preprocessed_query = html.unescape(query)
 
-        for raw_token in self._tokenize(query):
+        if preprocessed_query != query:
+            corrections.append(f"html-unescape:{query}->{preprocessed_query}")
+
+        for raw_token in self._tokenize(preprocessed_query):
             if raw_token in PUNCTUATION_TOKENS:
                 if preserve_punctuation:
                     prepared_tokens.append(raw_token)

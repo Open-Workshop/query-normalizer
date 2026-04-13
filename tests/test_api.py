@@ -131,6 +131,22 @@ def test_casefold_and_punctuation_normalization_are_reported() -> None:
     assert data["embedding"]["tokens"] == ["i", "am", ",", "привет", "."]
 
 
+def test_html_entities_do_not_turn_into_fake_tokens() -> None:
+    response = client.post(
+        "/for/all",
+        json={"query": "&lt;MOD is it?"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "html-unescape:&lt;MOD is it?-><MOD is it?" in data["classic"]["corrections_applied"]
+    assert data["classic"]["normalized_query"] == "mod"
+    assert data["classic"]["tokens"] == ["mod"]
+    assert data["embedding"]["normalized_query"] == "mod is it"
+    assert data["embedding"]["tokens"] == ["mod", "is", "it"]
+
+
 def test_negation_is_preserved() -> None:
     response = client.post(
         "/for/all",
