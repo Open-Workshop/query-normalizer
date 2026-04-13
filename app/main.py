@@ -20,19 +20,19 @@ def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/for/classic", response_model=NormalizationResponse)
+@app.post("/normalize/classic", response_model=NormalizationResponse)
 def normalize_for_classic(payload: QueryRequest) -> NormalizationResponse:
     result = normalizer.normalize_for_classic(payload.query)
     return NormalizationResponse(**asdict(result))
 
 
-@app.post("/for/embedding", response_model=NormalizationResponse)
+@app.post("/normalize/embedding", response_model=NormalizationResponse)
 def normalize_for_embedding(payload: QueryRequest) -> NormalizationResponse:
     result = normalizer.normalize_for_embedding(payload.query)
     return NormalizationResponse(**asdict(result))
 
 
-@app.post("/for/all", response_model=AllNormalizationResponse)
+@app.post("/normalize", response_model=AllNormalizationResponse)
 def normalize_for_all(payload: QueryRequest) -> AllNormalizationResponse:
     classic = normalizer.normalize_for_classic(payload.query)
     embedding = normalizer.normalize_for_embedding(payload.query)

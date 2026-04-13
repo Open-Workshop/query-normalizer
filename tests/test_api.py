@@ -8,7 +8,7 @@ client = TestClient(app)
 
 def test_classic_normalization_for_russian_query() -> None:
     response = client.post(
-        "/for/classic",
+        "/normalize/classic",
         json={"query": "Это ghbdtn алфaвиты и машины"},
     )
 
@@ -26,7 +26,7 @@ def test_classic_normalization_for_russian_query() -> None:
 
 def test_embedding_preserves_natural_phrase() -> None:
     response = client.post(
-        "/for/embedding",
+        "/normalize/embedding",
         json={"query": "Это ghbdtn алфaвиты и машины"},
     )
 
@@ -41,7 +41,7 @@ def test_embedding_preserves_natural_phrase() -> None:
 
 def test_classic_english_query_is_lemmatized() -> None:
     response = client.post(
-        "/for/classic",
+        "/normalize/classic",
         json={
             "query": (
                 "i am looking for a mod that adds more realistic weapons "
@@ -76,7 +76,7 @@ def test_classic_english_query_is_lemmatized() -> None:
 
 def test_embedding_english_query_keeps_full_phrase() -> None:
     response = client.post(
-        "/for/embedding",
+        "/normalize/embedding",
         json={
             "query": (
                 "i am looking for a mod that adds more realistic weapons "
@@ -117,7 +117,7 @@ def test_embedding_english_query_keeps_full_phrase() -> None:
 
 def test_casefold_and_punctuation_normalization_are_reported() -> None:
     response = client.post(
-        "/for/all",
+        "/normalize",
         json={"query": "I'Am, ghbdtn."},
     )
 
@@ -133,7 +133,7 @@ def test_casefold_and_punctuation_normalization_are_reported() -> None:
 
 def test_html_entities_do_not_turn_into_fake_tokens() -> None:
     response = client.post(
-        "/for/all",
+        "/normalize",
         json={"query": "&lt;MOD is it?"},
     )
 
@@ -149,7 +149,7 @@ def test_html_entities_do_not_turn_into_fake_tokens() -> None:
 
 def test_markup_noise_is_stripped_from_mod_description() -> None:
     response = client.post(
-        "/for/embedding",
+        "/normalize/embedding",
         json={
             "query": (
                 'This mod does [b]nothing by its self[/b]. '
@@ -175,7 +175,7 @@ def test_markup_noise_is_stripped_from_mod_description() -> None:
 
 def test_negation_is_preserved() -> None:
     response = client.post(
-        "/for/all",
+        "/normalize",
         json={"query": "не красные машины"},
     )
 

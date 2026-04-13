@@ -2,11 +2,11 @@
 
 FastAPI-микросервис для нормализации поисковых запросов в двух режимах:
 
-- `POST /for/classic`:
+- `POST /normalize/classic`:
   очистка BBCode/HTML/XML-подобной разметки, исправление раскладки, чистка смешанных алфавитов, удаление стоп-слов и лемматизация.
-- `POST /for/embedding`:
+- `POST /normalize/embedding`:
   очистка BBCode/HTML/XML-подобной разметки, исправление раскладки и чистка смешанных алфавитов без удаления стоп-слов и без лемматизации; запятая и точка сохраняются.
-- `POST /for/all`:
+- `POST /normalize`:
   оба варианта нормализации в одном ответе.
 
 Дополнительно есть `GET /health`.
@@ -25,7 +25,7 @@ uvicorn app.main:app --reload
 ## Пример запроса
 
 ```bash
-curl -X POST http://127.0.0.1:8000/for/all \
+curl -X POST http://127.0.0.1:8000/normalize \
   -H 'Content-Type: application/json' \
   -d '{"query":"Это ghbdtn алфaвиты и машины"}'
 ```
