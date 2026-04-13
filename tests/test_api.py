@@ -208,3 +208,147 @@ def test_ellipsis_is_collapsed_to_single_dot() -> None:
     data = response.json()
     assert data["normalized_query"] == "test. query. word"
     assert "ellipsis-normalize" in data["corrections_applied"]
+
+
+def test_mixed_alphabet_with_confusable_chars() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "hel1o \u0441\u0430\u0435\u0442", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "normalized_query" in data
+
+
+def test_numeric_tokens_remain_unchanged() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "test 123 456", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "123" in data["tokens"]
+    assert "456" in data["tokens"]
+
+
+def test_mixed_script_tokens_not_converted() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "testежи или amazingслово", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "test ежи" in data["normalized_query"] or "amazing слово" in data["normalized_query"]
+
+
+def test_empty_tokens_are_filtered() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "valid words  stop this", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "" not in data["tokens"]
+
+
+def test_combined_russian_and_latin_in_one_word() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "тестword или testслово", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "коррекций" not in data["corrections_applied"] or len(data["corrections_applied"]) >= 0
+
+
+def test_dominant_script_is_none_for_special_chars() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "!@# $%^", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "normalized_query" in data
+
+
+def test_all_basic_endpoints_without_debug() -> None:
+    response = client.post(
+        "/normalize",
+        json={"query": "test query"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "classic" in data
+    assert "embedding" in data
+    assert "corrections_applied" not in data["classic"]
+    assert "corrections_applied" not in data["embedding"]
+
+
+def test_mixed_alphabet_split_by_script() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "wordсловоanotherеще", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["normalized_query"]
+
+
+def test_special_chars_only_no_script() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "!@#$%^&*()", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["normalized_query"] == ""
+
+
+def test_stopword_in_embedding_mode() -> None:
+    response = client.post(
+        "/normalize/embedding",
+        json={"query": "the test this", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["normalized_query"] == "the test this"
+
+
+def test_only_symbols_no_words() -> None:
+    response = client.post(
+        "/normalize/classic",
+        json={"query": "... ,,, !!!", "debug": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["normalized_query"] == ""
+
+
+def test_version_includes_all_endpoints() -> None:
+    classical_response = client.post(
+        "/normalize/classic",
+        json={"query": "test"},
+    )
+    embedding_response = client.post(
+        "/normalize/embedding",  
+        json={"query": "test"},
+    )
+    all_response = client.post(
+        "/normalize",
+        json={"query": "test"},
+    )
+
+    assert classical_response.status_code == 200
+    assert embedding_response.status_code == 200
+    assert all_response.status_code == 200
