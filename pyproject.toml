@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Query Normalizer Team"}
+    {name = "Miskler"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -47,9 +47,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/anomalyco/query-normalizer"
-Repository = "https://github.com/anomalyco/query-normalizer"
-Issues = "https://github.com/anomalyco/query-normalizer/issues"
+Homepage = "https://github.com/Open-Workshop/query-normalizer"
+Repository = "https://github.com/Open-Workshop/query-normalizer"
+Issues = "https://github.com/Open-Workshop/query-normalizer/issues"
 
 [tool.setuptools]
 packages = ["query_normalizer"]
