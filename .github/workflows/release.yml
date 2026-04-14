@@ -13,7 +13,6 @@ on:
         options:
           - 'all'
           - 'pypi-publish'
-          - 'docs-build-publish'
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
