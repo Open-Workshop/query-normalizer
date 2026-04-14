@@ -55,10 +55,16 @@ class NormalizationConfig:
     english_stop_words: set[str] = field(default_factory=lambda: DEFAULT_ENGLISH_STOP_WORDS.copy())
     russian_stop_words: set[str] = field(default_factory=lambda: DEFAULT_RUSSIAN_STOP_WORDS.copy())
     stop_words: set[str] = field(default_factory=lambda: DEFAULT_STOP_WORDS.copy())
-    keyboard_latin_to_cyrillic: dict[int, int] = field(default_factory=lambda: DEFAULT_KEYBOARD_LATIN_TO_CYRILLIC.copy())
-    keyboard_cyrillic_to_latin: dict[int, int] = field(default_factory=lambda: DEFAULT_KEYBOARD_CYRILLIC_TO_LATIN.copy())
+    keyboard_latin_to_cyrillic: dict[int, int] = field(
+        default_factory=lambda: DEFAULT_KEYBOARD_LATIN_TO_CYRILLIC.copy()
+    )
+    keyboard_cyrillic_to_latin: dict[int, int] = field(
+        default_factory=lambda: DEFAULT_KEYBOARD_CYRILLIC_TO_LATIN.copy()
+    )
     script_aliases: set[str] = field(default_factory=lambda: DEFAULT_SCRIPT_ALIASES.copy())
     punctuation_tokens: set[str] = field(default_factory=lambda: DEFAULT_PUNCTUATION_TOKENS.copy())
+
+
 KEYBOARD_CYRILLIC_TO_LATIN = str.maketrans(
     "йцукенгшщзфывапролдячсмить",
     "qwertyuiopasdfghjklzxcvbnm",
@@ -126,9 +132,7 @@ class QueryNormalizer:
                 corrections.append(punctuation_correction)
 
             for punct_normalized_token in punct_normalized_tokens:
-                normalized_tokens, token_corrections = self._normalize_token(
-                    punct_normalized_token
-                )
+                normalized_tokens, token_corrections = self._normalize_token(punct_normalized_token)
                 corrections.extend(token_corrections)
 
                 for token in normalized_tokens:
@@ -199,11 +203,11 @@ class QueryNormalizer:
         whitespace_normalized = WHITESPACE_RE.sub(" ", preprocessed).strip()
         if whitespace_normalized != preprocessed.strip():
             corrections.append("whitespace-normalize")
-        
+
         ellipsis_normalized = ELLIPSIS_RE.sub(".", whitespace_normalized)
         if ellipsis_normalized != whitespace_normalized:
             corrections.append("ellipsis-normalize")
-        
+
         return ellipsis_normalized
 
     def _normalize_punctuation_token(self, token: str) -> tuple[list[str], str | None]:
@@ -232,8 +236,7 @@ class QueryNormalizer:
         dominant_alias = self._dominant_script_alias(token)
         if dominant_alias is not None:
             converted = "".join(
-                self._convert_confusable_char(char, dominant_alias)
-                for char in token
+                self._convert_confusable_char(char, dominant_alias) for char in token
             )
             if not confusables.is_mixed_script(converted):
                 return [converted]
@@ -261,12 +264,18 @@ class QueryNormalizer:
 
         if self._contains_latin(token):
             candidate = token.translate(self._config.keyboard_latin_to_cyrillic)
-            if self._score_russian_token(candidate) >= self._score_english_token(token) + self._config.keyboard_layout_fix_threshold:
+            if (
+                self._score_russian_token(candidate)
+                >= self._score_english_token(token) + self._config.keyboard_layout_fix_threshold
+            ):
                 return candidate
 
         if self._contains_cyrillic(token):
             candidate = token.translate(self._config.keyboard_cyrillic_to_latin)
-            if self._score_english_token(candidate) >= self._score_russian_token(token) + self._config.keyboard_layout_fix_threshold:
+            if (
+                self._score_english_token(candidate)
+                >= self._score_russian_token(token) + self._config.keyboard_layout_fix_threshold
+            ):
                 return candidate
 
         return token

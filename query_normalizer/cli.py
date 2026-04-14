@@ -22,11 +22,11 @@ def cli() -> None:
         action="store_true",
         help="Show corrections applied",
     )
-    
+
     args = parser.parse_args()
     query = " ".join(args.query)
     normalizer = QueryNormalizer()
-    
+
     if args.mode == "classic":
         result = normalizer.normalize_for_classic(query)
         print(f"Normalized: {result.normalized_query}")
@@ -44,10 +44,10 @@ def cli() -> None:
     else:
         classic = normalizer.normalize_for_classic(query)
         embedding = normalizer.normalize_for_embedding(query)
-        
+
         print(f"Classic: {classic.normalized_query}")
         print(f"Embedding: {embedding.normalized_query}")
-        
+
         if args.debug:
             if classic.corrections_applied:
                 print("Classic corrections:")

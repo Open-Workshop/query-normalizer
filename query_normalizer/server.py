@@ -28,8 +28,12 @@ def healthcheck() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/normalize/classic", response_model=Union[NormalizationResponse, BasicNormalizationResponse])
-def normalize_for_classic(payload: QueryRequest) -> Union[NormalizationResponse, BasicNormalizationResponse]:
+@app.post(
+    "/normalize/classic", response_model=Union[NormalizationResponse, BasicNormalizationResponse]
+)
+def normalize_for_classic(
+    payload: QueryRequest,
+) -> Union[NormalizationResponse, BasicNormalizationResponse]:
     result = normalizer.normalize_for_classic(payload.query)
     if payload.debug:
         return NormalizationResponse(**asdict(result))
@@ -39,8 +43,12 @@ def normalize_for_classic(payload: QueryRequest) -> Union[NormalizationResponse,
     )
 
 
-@app.post("/normalize/embedding", response_model=Union[NormalizationResponse, BasicNormalizationResponse])
-def normalize_for_embedding(payload: QueryRequest) -> Union[NormalizationResponse, BasicNormalizationResponse]:
+@app.post(
+    "/normalize/embedding", response_model=Union[NormalizationResponse, BasicNormalizationResponse]
+)
+def normalize_for_embedding(
+    payload: QueryRequest,
+) -> Union[NormalizationResponse, BasicNormalizationResponse]:
     result = normalizer.normalize_for_embedding(payload.query)
     if payload.debug:
         return NormalizationResponse(**asdict(result))
@@ -50,8 +58,12 @@ def normalize_for_embedding(payload: QueryRequest) -> Union[NormalizationRespons
     )
 
 
-@app.post("/normalize", response_model=Union[AllNormalizationResponse, AllBasicNormalizationResponse])
-def normalize_for_all(payload: QueryRequest) -> Union[AllNormalizationResponse, AllBasicNormalizationResponse]:
+@app.post(
+    "/normalize", response_model=Union[AllNormalizationResponse, AllBasicNormalizationResponse]
+)
+def normalize_for_all(
+    payload: QueryRequest,
+) -> Union[AllNormalizationResponse, AllBasicNormalizationResponse]:
     classic = normalizer.normalize_for_classic(payload.query)
     embedding = normalizer.normalize_for_embedding(payload.query)
 

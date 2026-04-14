@@ -146,9 +146,9 @@ def test_markup_noise_is_stripped_from_mod_description() -> None:
         "/normalize/embedding",
         json={
             "query": (
-                'This mod does [b]nothing by its self[/b]. '
-                '[list][*] Harmony Postfix [/list] '
-                '<Defs><PawnKindDef><defName>Pilgrim_Rose</defName></PawnKindDef></Defs>'
+                "This mod does [b]nothing by its self[/b]. "
+                "[list][*] Harmony Postfix [/list] "
+                "<Defs><PawnKindDef><defName>Pilgrim_Rose</defName></PawnKindDef></Defs>"
             ),
             "debug": True,
         },
@@ -339,7 +339,7 @@ def test_version_includes_all_endpoints() -> None:
         json={"query": "test"},
     )
     embedding_response = client.post(
-        "/normalize/embedding",  
+        "/normalize/embedding",
         json={"query": "test"},
     )
     all_response = client.post(
