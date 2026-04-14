@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import html
 import re
 
@@ -13,7 +13,7 @@ from simplemma import in_target_language, is_known, lemmatize
 from stop_words import get_stop_words
 
 
-TOKEN_RE = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+(?:['`’][0-9A-Za-zА-Яа-яЁё]+)*|[.,]")
+TOKEN_RE = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+(?:['`''][0-9A-Za-zА-Яа-яЁё]+)*|[.,]")
 LATIN_RE = re.compile(r"[A-Za-z]")
 CYRILLIC_RE = re.compile(r"[А-Яа-яЁё]")
 ELLIPSIS_RE = re.compile(r"\.{2,}")
@@ -22,25 +22,43 @@ HTML_LIKE_TAG_RE = re.compile(r"<[A-Za-z][^>]*>|</[A-Za-z][^>]*>")
 ANGLE_BRACKETS_RE = re.compile(r"[<>]")
 WHITESPACE_RE = re.compile(r"\s+")
 
-SCRIPT_ALIASES = {"LATIN", "CYRILLIC"}
-PUNCTUATION_TOKENS = {",", "."}
+DEFAULT_SCRIPT_ALIASES = {"LATIN", "CYRILLIC"}
+DEFAULT_PUNCTUATION_TOKENS = {",", "."}
 
 try:
     nltk_stopwords.words("english")
 except LookupError:
     nltk.download("stopwords", quiet=True)
 
-ENGLISH_STOP_WORDS = set(nltk_stopwords.words("english")) | {"much"}
-ENGLISH_STOP_WORDS -= {"no", "nor", "not"}
-RUSSIAN_STOP_WORDS = set(get_stop_words("ru")) - {"не"}
-STOP_WORDS = ENGLISH_STOP_WORDS | RUSSIAN_STOP_WORDS
+DEFAULT_ENGLISH_STOP_WORDS = set(nltk_stopwords.words("english")) | {"much"}
+DEFAULT_ENGLISH_STOP_WORDS -= {"no", "nor", "not"}
+DEFAULT_RUSSIAN_STOP_WORDS = set(get_stop_words("ru")) - {"не", "нет", "нету"}
+DEFAULT_STOP_WORDS = DEFAULT_ENGLISH_STOP_WORDS | DEFAULT_RUSSIAN_STOP_WORDS
 
 # There is no lightweight service-oriented library for this exact API shape,
 # so we keep only the standard RU<->EN layout map as glue code.
-KEYBOARD_LATIN_TO_CYRILLIC = str.maketrans(
+DEFAULT_KEYBOARD_LATIN_TO_CYRILLIC = str.maketrans(
     "qwertyuiopasdfghjklzxcvbnm",
     "йцукенгшщзфывапролдячсмить",
 )
+DEFAULT_KEYBOARD_CYRILLIC_TO_LATIN = str.maketrans(
+    "йцукенгшщзфывапролдячсмить",
+    "qwertyuiopasdfghjklzxcvbnm",
+)
+
+
+@dataclass(slots=True)
+class NormalizationConfig:
+    keyboard_layout_fix_threshold: float = 0.75
+    known_word_bonus: float = 1.0
+    stopword_bonus: float = 0.25
+    english_stop_words: set[str] = field(default_factory=lambda: DEFAULT_ENGLISH_STOP_WORDS.copy())
+    russian_stop_words: set[str] = field(default_factory=lambda: DEFAULT_RUSSIAN_STOP_WORDS.copy())
+    stop_words: set[str] = field(default_factory=lambda: DEFAULT_STOP_WORDS.copy())
+    keyboard_latin_to_cyrillic: dict[int, int] = field(default_factory=lambda: DEFAULT_KEYBOARD_LATIN_TO_CYRILLIC.copy())
+    keyboard_cyrillic_to_latin: dict[int, int] = field(default_factory=lambda: DEFAULT_KEYBOARD_CYRILLIC_TO_LATIN.copy())
+    script_aliases: set[str] = field(default_factory=lambda: DEFAULT_SCRIPT_ALIASES.copy())
+    punctuation_tokens: set[str] = field(default_factory=lambda: DEFAULT_PUNCTUATION_TOKENS.copy())
 KEYBOARD_CYRILLIC_TO_LATIN = str.maketrans(
     "йцукенгшщзфывапролдячсмить",
     "qwertyuiopasdfghjklzxcvbnm",
@@ -55,7 +73,8 @@ class NormalizationResult:
 
 
 class QueryNormalizer:
-    def __init__(self) -> None:
+    def __init__(self, config: NormalizationConfig | None = None) -> None:
+        self._config = config if config is not None else NormalizationConfig()
         self._morph = MorphAnalyzer()
 
     def normalize_for_classic(self, query: str) -> NormalizationResult:
@@ -91,7 +110,7 @@ class QueryNormalizer:
         preprocessed_query = self._preprocess_query(query, corrections)
 
         for raw_token in self._tokenize(preprocessed_query):
-            if raw_token in PUNCTUATION_TOKENS:
+            if raw_token in self._config.punctuation_tokens:
                 if preserve_punctuation:
                     prepared_tokens.append(raw_token)
                 continue
@@ -116,7 +135,7 @@ class QueryNormalizer:
                     if not token:
                         continue
 
-                    if remove_stopwords and token in STOP_WORDS:
+                    if remove_stopwords and token in self._config.stop_words:
                         corrections.append(f"stopword:{token}")
                         continue
 
@@ -126,7 +145,7 @@ class QueryNormalizer:
                     if lemmatize_tokens:
                         final_token, lemma_correction = self._lemmatize_token(token)
 
-                    if remove_stopwords and final_token in STOP_WORDS:
+                    if remove_stopwords and final_token in self._config.stop_words:
                         corrections.append(f"stopword:{final_token}")
                         continue
 
@@ -140,6 +159,18 @@ class QueryNormalizer:
             tokens=prepared_tokens,
             corrections_applied=corrections,
         )
+
+    def _render_normalized_query(self, tokens: list[str]) -> str:
+        rendered_parts: list[str] = []
+
+        for token in tokens:
+            if token in self._config.punctuation_tokens and rendered_parts:
+                rendered_parts[-1] = f"{rendered_parts[-1]}{token}"
+                continue
+
+            rendered_parts.append(token)
+
+        return " ".join(rendered_parts)
 
     def _tokenize(self, query: str) -> list[str]:
         return [match.group(0) for match in TOKEN_RE.finditer(query)]
@@ -229,13 +260,13 @@ class QueryNormalizer:
             return token
 
         if self._contains_latin(token):
-            candidate = token.translate(KEYBOARD_LATIN_TO_CYRILLIC)
-            if self._score_russian_token(candidate) >= self._score_english_token(token) + 0.75:
+            candidate = token.translate(self._config.keyboard_latin_to_cyrillic)
+            if self._score_russian_token(candidate) >= self._score_english_token(token) + self._config.keyboard_layout_fix_threshold:
                 return candidate
 
         if self._contains_cyrillic(token):
-            candidate = token.translate(KEYBOARD_CYRILLIC_TO_LATIN)
-            if self._score_english_token(candidate) >= self._score_russian_token(token) + 0.75:
+            candidate = token.translate(self._config.keyboard_cyrillic_to_latin)
+            if self._score_english_token(candidate) >= self._score_russian_token(token) + self._config.keyboard_layout_fix_threshold:
                 return candidate
 
         return token
@@ -263,10 +294,10 @@ class QueryNormalizer:
         score = in_target_language(token, "ru")
 
         if self._morph.word_is_known(token):
-            score += 1.0
+            score += self._config.known_word_bonus
 
-        if token in RUSSIAN_STOP_WORDS:
-            score += 0.25
+        if token in self._config.russian_stop_words:
+            score += self._config.stopword_bonus
 
         return score
 
@@ -277,25 +308,25 @@ class QueryNormalizer:
         score = in_target_language(token, "en")
 
         if is_known(token, lang="en"):
-            score += 1.0
+            score += self._config.known_word_bonus
 
-        if token in ENGLISH_STOP_WORDS:
-            score += 0.25
+        if token in self._config.english_stop_words:
+            score += self._config.stopword_bonus
 
         return score
 
     def _dominant_script_alias(self, token: str) -> str | None:
-        counts = {"LATIN": 0, "CYRILLIC": 0}
+        counts = {alias: 0 for alias in self._config.script_aliases}
 
         for char in token:
             alias = self._script_alias(char)
             if alias in counts:
                 counts[alias] += 1
 
-        if counts["LATIN"] == counts["CYRILLIC"] == 0:
+        if not any(counts.values()):
             return None
 
-        return "CYRILLIC" if counts["CYRILLIC"] >= counts["LATIN"] else "LATIN"
+        return sorted(counts.items(), key=lambda x: -x[1])[0][0]
 
     def _split_by_script(self, token: str) -> list[str]:
         pieces: list[str] = []
@@ -325,22 +356,10 @@ class QueryNormalizer:
 
     def _script_alias(self, char: str) -> str:
         alias = confusables.alias(char)
-        return alias if alias in SCRIPT_ALIASES else "COMMON"
+        return alias if alias in self._config.script_aliases else "COMMON"
 
     def _contains_latin(self, token: str) -> bool:
         return bool(LATIN_RE.search(token))
 
     def _contains_cyrillic(self, token: str) -> bool:
         return bool(CYRILLIC_RE.search(token))
-
-    def _render_normalized_query(self, tokens: list[str]) -> str:
-        rendered_parts: list[str] = []
-
-        for token in tokens:
-            if token in PUNCTUATION_TOKENS and rendered_parts:
-                rendered_parts[-1] = f"{rendered_parts[-1]}{token}"
-                continue
-
-            rendered_parts.append(token)
-
-        return " ".join(rendered_parts)

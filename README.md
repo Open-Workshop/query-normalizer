@@ -39,12 +39,37 @@ print(result.tokens)  # ["привет", "алфавит", "машина"]
 # Embedding mode: natural language preserved
 result = normalizer.normalize_for_embedding("Это ghbdtn алфaвиты и машины")
 print(result.normalized_query)  # "это привет алфавиты и машины"
-
-# Debug mode shows all corrections
-result = normalizer.normalize_for_classic("test query", debug=True)
-for correction in result.corrections_applied:
-    print(correction)
 ```
+
+## Configuration
+
+You can customize normalization behavior via `NormalizationConfig`:
+
+```python
+from query_normalizer import QueryNormalizer, NormalizationConfig
+
+config = NormalizationConfig(
+    keyboard_layout_fix_threshold=0.9,  # Higher threshold layout
+    known_word_bonus=1.5,                # Increase trust in known words
+    stopword_bonus=0.5,                  # Increase trust in stopwords
+    stop_words={"custom", "stop", "words"},  # Custom stopword list
+)
+
+normalizer = QueryNormalizer(config=config)
+result = normalizer.normalize_for_classic("test query")
+```
+
+Available config options:
+- `keyboard_layout_fix_threshold`: Threshold for keyboard layout fixing (default: 0.75)
+- `known_word_bonus`: Bonus for dictionary words in language detection (default: 1.0)
+- `stopword_bonus`: Bonus for stopwords in language detection (default: 0.25)
+- `english_stop_words`: Custom English stopwords set
+- `russian_stop_words`: Custom Russian stopwords set
+- `stop_words`: Custom combined stopwords set
+- `keyboard_latin_to_cyrillic`: Custom latin-to-cyrillic keyboard mapping
+- `keyboard_cyrillic_to_latin`: Custom cyrillic-to-latin keyboard mapping
+- `script_aliases`: Supported script aliases
+- `punctuation_tokens`: Punctuation tokens to handle
 
 ## CLI Usage
 
