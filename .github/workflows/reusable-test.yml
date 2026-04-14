@@ -1,0 +1,41 @@
+name: "Reusable Test Workflow"
+
+on:
+  workflow_call:
+    inputs:
+      python-versions:
+        type: string
+        default: '["3.10","3.11","3.12","3.13","3.14"]'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJson(inputs.python-versions) }}
+        include:
+          - python-version: "3.13"
+            primary: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            **/pyproject.toml
+            **/requirements*.txt
+
+      - name: Install dev deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: |
+          pytest
