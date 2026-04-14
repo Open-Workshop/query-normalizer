@@ -174,4 +174,4 @@ mypy query_normalizer/
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+GNU General Public License v3.0 (GPL-3.0) - see [LICENSE](LICENSE) for details.
