@@ -1,7 +1,6 @@
 """CLI interface for query normalization."""
 
 import argparse
-import sys
 
 from query_normalizer import QueryNormalizer
 

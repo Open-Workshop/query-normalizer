@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import html
 import re
+from dataclasses import dataclass, field
 
+import nltk  # type: ignore[import-untyped]
 from bs4 import BeautifulSoup
-from confusable_homoglyphs import confusables
-import nltk
-from nltk.corpus import stopwords as nltk_stopwords
-from pymorphy3 import MorphAnalyzer
+from confusable_homoglyphs import confusables  # type: ignore[import-untyped]
+from nltk.corpus import stopwords as nltk_stopwords  # type: ignore[import-untyped]
+from pymorphy3 import MorphAnalyzer  # type: ignore[import-untyped]
 from simplemma import in_target_language, is_known, lemmatize
-from stop_words import get_stop_words
-
+from stop_words import get_stop_words  # type: ignore[import-untyped]
 
 TOKEN_RE = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+(?:['`''][0-9A-Za-zА-Яа-яЁё]+)*|[.,]")
 LATIN_RE = re.compile(r"[A-Za-z]")
@@ -248,8 +247,9 @@ class QueryNormalizer:
         if char_alias in {target_alias, "COMMON"}:
             return char
 
-        for candidate in confusables.confusables_data.get(char, []):
-            glyph = candidate["c"]
+        candidates = confusables.confusables_data.get(char, [])
+        for candidate in candidates:
+            glyph = str(candidate.get("c", ""))
             if len(glyph) == 1 and self._script_alias(glyph) == target_alias:
                 return glyph
 

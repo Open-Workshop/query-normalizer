@@ -1,12 +1,11 @@
 """CLI tests for query-normalizer."""
 
 from unittest.mock import patch
-import pytest
 
 
 def test_cli_basic_mode():
-    from io import StringIO
     import sys
+    from io import StringIO
 
     original_argv = sys.argv
     try:
@@ -20,8 +19,8 @@ def test_cli_basic_mode():
 
 
 def test_cli_classic_mode():
-    from io import StringIO
     import sys
+    from io import StringIO
 
     original_argv = sys.argv
     try:
@@ -35,8 +34,8 @@ def test_cli_classic_mode():
 
 
 def test_cli_embedding_mode():
-    from io import StringIO
     import sys
+    from io import StringIO
 
     original_argv = sys.argv
     try:
@@ -50,8 +49,8 @@ def test_cli_embedding_mode():
 
 
 def test_cli_both_mode():
-    from io import StringIO
     import sys
+    from io import StringIO
 
     original_argv = sys.argv
     try:
@@ -65,8 +64,8 @@ def test_cli_both_mode():
 
 
 def test_cli_debug_mode():
-    from io import StringIO
     import sys
+    from io import StringIO
 
     original_argv = sys.argv
     try:

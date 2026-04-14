@@ -1,7 +1,7 @@
 """FastAPI server for query normalization."""
 
-from typing import Union
 from dataclasses import asdict
+from typing import Union
 
 from fastapi import FastAPI
 
